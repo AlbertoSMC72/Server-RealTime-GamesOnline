@@ -63,8 +63,37 @@ const create = async (req, res) => {
     }
 }
 
+const update = async (req, res) => {
+    try {
+        let user = await User.findById(req.params.id);
+
+        if (!user) {
+            return res.status(404).json({
+                message: "usuario no encontrado"
+            });
+        }
+
+        user.name = req.body.name;
+        user.puntos = req.body.puntos;
+        user.password = bcrypt.hashSync(req.body.password, saltRounds);
+
+        await user.save();
+
+        return res.status(200).json({
+            message: "usuario actualizado exitosamente",
+            user
+        });
+    } catch (error) {
+        return res.status(500).json({
+            message: "ocurrió un error al actualizar el usuario",
+            error: error.message
+        });
+    }
+}
+
 module.exports = {
     getById,
     create,
-    getAll
+    getAll,
+    update
 }

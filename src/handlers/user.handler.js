@@ -1,53 +1,45 @@
-const bcrypt = require('bcrypt');
-const saltRounds = parseInt(process.env.SALT_ROUNDS_BCRYPT);
-const User = require('../models/user.model');
+const { Socket } = require("socket.io");
 
 module.exports = (io, socket) => {
 
-    const readUser = async (userId) => {
-        try {
-            const user = await User.findById(userId);
+    console.log('Nuevo jugador conectado');
 
-            if (!user) {
-                socket.emit("user:not_found", "el usuario no fue encontrado");
-                return
-            }
+    // Crear una nueva sala para el jugador
+    const roomID = socket.id;
+    socket.join(roomID);
+    rooms[roomID] = {
+        players: [socket.id],
+        numberToGuess: Math.floor(Math.random() * 10) + 1,
+    };
 
-            socket.emit("user:read_success", user);
-        } catch (error) {
-            const data = {
-                message: "ocurrió un error al obtener usuario",
-                error: error.message
-            }
+    // Enviar mensaje inicial al jugador
+    socket.emit('message', `¡Bienvenido a la sala ${roomID}! Adivina el número del 1 al 10.`);
 
-            socket.emit("user:read_error", data);
+    // Manejar eventos del juego
+    socket.on('guess', (guess) => {
+        const room = rooms[roomID];
+
+        if (guess === room.numberToGuess.toString()) {
+            io.to(roomID).emit('message', '¡Felicidades! Has adivinado el número.');
+            io.to(roomID).emit('gameOver');
+        } else {
+            io.to(roomID).emit('message', `Intento incorrecto. ¡Sigue intentando!`);
         }
-    }
+    });
 
-    const createUser = async (payload) => {
-        try {
-            const user = new User({
-                ...payload, 
-                password: bcrypt.hashSync(req.body.password, saltRounds)
-            });
+    socket.on('disconnect', () => {
+        console.log('Jugador desconectado');
 
-            await user.save();
-
-            // emite evento al cliente que creó la notificación
-            socket.emit("user:create_success", user);
-
-            // emite evento a todos los clientes
-            io.emit('user:created', user);
-        } catch (error) {
-            const data = {
-                message: "ocurrió un error al crear el usuario",
-                error: error.message
+        // Eliminar la sala si ya no hay jugadores
+        if (rooms[roomID]) {
+            const index = rooms[roomID].players.indexOf(socket.id);
+            if (index !== -1) {
+                rooms[roomID].players.splice(index, 1);
             }
 
-            socket.emit("user:create_error", data);
+            if (rooms[roomID].players.length === 0) {
+                delete rooms[roomID];
+            }
         }
-    }
-
-    socket.on("user:read", readUser);
-    socket.on("user:create", createUser);
+    });
 }

@@ -27,8 +27,8 @@ const routes = require('./src/routes');
 app.use(routes);
 
 // Configuración de middleware de socket.io
-/* const authMiddleware = require('./src/middlewares/socketio/auth.middleware');
-io.use(authMiddleware.verifyJWT); */
+const authMiddleware = require('./src/middlewares/socketio/auth.middleware');
+io.use(authMiddleware.verifyJWT);
 
 // Configuración de handlers de socket.io
 
